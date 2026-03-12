@@ -1,0 +1,16 @@
+/Fci/.env
+/Fci_App/migrations
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+db.sqlite3
+.DS_Store
+node_modules/
+.expo/
+npm-debug.*
+yarn-debug.*
+yarn-error.*

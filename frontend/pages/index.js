@@ -1,0 +1,7 @@
+export { default as Splash } from './Switch'
+export {default as Loading} from './Loading'
+export {default as Register} from './Register'
+export {default as WorkInfo} from './WorkInfo'
+export {default as Login} from './Login'
+export {default as FarmerDashboard} from './FarmerDashboard'
+export {default as DealerDashboard} from './DealerDashboard'
