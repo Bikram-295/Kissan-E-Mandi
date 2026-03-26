@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SharedPreferences from 'react-native-shared-preferences'
+
 
 
 export const checkLoggedIn = async (navigator) => {
