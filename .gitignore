@@ -1,5 +1,6 @@
 /Fci/.env
-/Fci_App/migrations
+Fci_App/migrations/__pycache__/
+Fci_App/migrations/*.pyc
 __pycache__/
 *.py[cod]
 *$py.class

@@ -23,8 +23,18 @@ from django.http import JsonResponse
 def health_check(request):
     return JsonResponse({"status": "ok", "message": "Backend is running!"})
 
+from django.core.management import call_command
+
+def run_migrations(request):
+    try:
+        call_command('migrate', interactive=False)
+        return JsonResponse({"status": "success", "message": "Migrations ran successfully!"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("fci/", include('Fci_App.urls')),
     path("health/", health_check),
+    path("migrate/", run_migrations),
 ]
