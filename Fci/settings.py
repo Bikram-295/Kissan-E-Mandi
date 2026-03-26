@@ -92,7 +92,9 @@ DATABASES = {
 
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    DATABASES["default"] = dj_database_url.parse(database_url)
+    # Strip channel_binding param which psycopg2 doesn't support (added by Neon)
+    database_url = database_url.replace("&channel_binding=require", "").replace("?channel_binding=require&", "?").replace("?channel_binding=require", "")
+    DATABASES["default"] = dj_database_url.parse(database_url, conn_max_age=600)
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
