@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-suk+adh2obh6o*xvc4*s3v-rgwdf#sr%6%lk+(*u^02nxo1bqs"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+DEBUG = os.environ.get("DEBUG", "True").strip().lower() in ("true", "1", "t", "yes")
 
 ALLOWED_HOSTS = ["*"]
 
@@ -94,6 +94,10 @@ database_url = os.environ.get("DATABASE_URL")
 if database_url:
     # Strip channel_binding param which psycopg2 doesn't support (added by Neon)
     database_url = database_url.replace("&channel_binding=require", "").replace("?channel_binding=require&", "?").replace("?channel_binding=require", "")
+    # Add sslmode=require if not present
+    if "sslmode=" not in database_url:
+        separator = "&" if "?" in database_url else "?"
+        database_url += f"{separator}sslmode=require"
     DATABASES["default"] = dj_database_url.parse(database_url, conn_max_age=600)
 # DATABASES = {
 #     'default': {
