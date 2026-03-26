@@ -1,4 +1,4 @@
-const baseURL = "http://127.0.0.1:8000/fci/";
+const baseURL = "https://kissan-e-mandi.onrender.com/fci/";
 
 
 export const userURL = baseURL + "users/"
