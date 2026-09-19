@@ -1,236 +1,240 @@
 import React, { useState, useEffect } from "react";
 import images from "../images";
 import {
-  Appbar,
-  List,
   Card,
   Chip,
   Button as PaperButton,
   Portal,
   Modal,
+  Divider,
 } from "react-native-paper";
 import { View, StyleSheet, Image, Text } from "react-native";
-import { Button } from "@rneui/themed";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { OfferPrice } from ".";
+import { useDispatch } from "react-redux";
 import globalStyles from "../globals";
-import {
-  useCreateTransaction,
-  useTransactionsFarmer,
-  useTransactionsAll,
-} from "../hooks/transaction";
 import { useUpdateTransaction } from "../hooks/transaction";
+import LifecycleStepper from "./LifecycleStepper";
+import { updateTransactionStatus } from "../store/slices/transactionSlice";
 
+const STAGE_LABELS = {
+  pending: "Pending",
+  waiting_for_farmer: "Pending Offer",
+  deal_done: "Deal Done",
+  dispatched: "Dispatched",
+  delivered: "Delivered",
+  inspected: "Inspected",
+  payment_done: "Payment Done",
+  rejected: "Rejected",
+};
 
-// const EditPrice=({transaction})=>{
-
-//     //wamt price from it
-//     //need msp as input from card , trnsation objevt
-
-//     const price,setPrice=useState("");
-//     const msp=transaction['price'];
-//     const [error, setError] = useState(null);
-//     const onSubmit=()=>{
-//         if(price <transaction['price']){
-//             setError("Price must be greater than msp");
-//         }
-
-//          const updatedTransaction = {
-//             ...transaction,
-//             price: price,
-//             // Any other properties you want to update
-//         };
-
-//         const response = await useTransactionCreator(transaction);
-//         console.log(response);
-//     }
-
-//     return (
-//         <View style={{display:'flex'}}>
-//         <View style={globalStyles.formField}>
-//                     {error && <Text>Error: {error}</Text>}
-//                     <Text style={globalStyles.formLabels}>Price  Msp-:{msp}</Text>
-//                     <TextInput style={globalStyles.textInput} mode='outlined' value={price} onChangeText={(txt) => setPrice(txt)} />
-//         </View>
-//         <View style={{alignSelf:'flex-end'}}>
-//        <Button
-//           title="Accept"
-//           buttonStyle={{ backgroundColor: "rgba(127, 220, 103, 1)" }}
-//           containerStyle={{
-//             height: 40,
-//             width: 80,
-//             marginHorizontal: 30,
-//             marginVertical: 10,
-//           }}
-//           titleStyle={{
-//             color: "white",
-//           }}
-//           onClick={onSubmit}
-//         />
-//         </View>
-//         </View>
-//     );
-// }
+const STAGE_COLORS = {
+  pending: "#FFB703",
+  waiting_for_farmer: "#FFB703",
+  deal_done: "#219ebc",
+  dispatched: "#8ecae6",
+  delivered: "#52B788",
+  inspected: "#40916C",
+  payment_done: "#2EB62C",
+  rejected: "#BC4749",
+};
 
 const TransactionCard = ({ deal, statusColor, statusDisplay }) => {
-  //   const { farmer, id } = listing;
-  //   const { transactionCreator, transactionCreating } = useCreateTransaction();
+  const dispatch = useDispatch();
   const { transactionUpdater, transactionUpdating } = useUpdateTransaction();
   const { farmer, dealer, price, crop_register, status, created_at, id } = deal;
 
   const [open, setOpen] = useState(false);
-  const containerStyle = { backgroundColor: "white", padding: 20 };
+  const containerStyle = { backgroundColor: "white", padding: 20, margin: 20, borderRadius: 12 };
 
-  const openSetPrice = () => {};
-  const [openEditPrice, setOpenEditPrice] = useState(false);
-  const [transaction, setTransaction] = useState("");
   const [currId, setCurrId] = useState("");
   const [dealerType, setDealerType] = useState("");
 
-  const handlePayment = () => {
-    // Linking.openURL(https://buy.stripe.com/test_8wM00fc0BbuD7iE5kp);
-  };
-
-  //   const handleAccept = async (farmer, id, msp) => {
-  //     // const currDealer= await AsyncStorage.getItem("Id");
-  //     const dealerType = await AsyncStorage.getItem("dealer_type");
-  //     console.log("fwrefwefew", listing);
-  //     console.log(farmer, id, msp, currId);
-  //     const transaction = {
-  //       farmer: farmer,
-  //       dealer: parseInt(currId),
-  //       status: "waiting_for_farmer",
-  //       price: msp,
-  //       crop_register: id,
-  //     };
-
-  //     if (dealerType == "private") {
-  //       console.log("jaea");
-  //       setTransaction(transaction);
-  //       setOpenEditPrice(true);
-  //       return;
-  //     }
-  //     console.log("jaa");
-  //     const response = await transactionCreator(transaction);
-  //     console.log(response);
-  //   };
-
   useEffect(() => {
     (async () => {
-      const currId = await AsyncStorage.getItem("id");
-      const dealerType = await AsyncStorage.getItem("dealer_type");
-      setCurrId(currId);
-      setDealerType(dealerType);
+      const storedId = await AsyncStorage.getItem("id");
+      const storedDealerType = await AsyncStorage.getItem("dealer_type");
+      setCurrId(storedId);
+      setDealerType(storedDealerType);
     })();
   }, []);
 
-  const handleMarkAsDone = async (
-    farmer,
-    dealer,
-    price,
-    crop_register,
-    status,
-    created_at,
-    id
-  ) => {
+  // 6-Stage sequential state machine progression
+  let nextStage = null;
+  let nextActionLabel = null;
+
+  if (deal.status === "pending" || deal.status === "waiting_for_farmer") {
+    nextStage = "deal_done";
+    nextActionLabel = "Accept Deal (Lock Agreement)";
+  } else if (deal.status === "deal_done") {
+    nextStage = "dispatched";
+    nextActionLabel = "Mark Dispatched (In Transit)";
+  } else if (deal.status === "dispatched") {
+    nextStage = "delivered";
+    nextActionLabel = "Confirm Delivery at Mandi";
+  } else if (deal.status === "delivered") {
+    nextStage = "inspected";
+    nextActionLabel = "Verify & Mark Inspected";
+  } else if (deal.status === "inspected") {
+    nextStage = "payment_done";
+    nextActionLabel = "Release Settlement (Payment Done)";
+  }
+
+  const handleTransition = async (targetStatus) => {
     try {
-      const response = await transactionUpdater({
+      const payload = {
         id: id,
         dealer: dealer.id,
         farmer: farmer.id,
         crop_register: crop_register.id,
         price: price,
-        status: status,
+        status: targetStatus,
         created_at: created_at,
-      });
+      };
+      const response = await transactionUpdater(payload);
+      dispatch(updateTransactionStatus({ id, status: targetStatus }));
       setOpen(false);
-      console.log(response);
     } catch (error) {
-      console.log(error);
+      console.error("Transition failed:", error);
     }
   };
-  let subsequentState = "";
 
-  if (deal.status === "deal_done") subsequentState = "delivered";
-  if (deal.status === "delivered") subsequentState = "payment_done";
+  const activeColor = STAGE_COLORS[deal.status] || statusColor || "#1B4332";
+  const activeLabel = STAGE_LABELS[deal.status] || statusDisplay || deal.status;
 
   return (
     <>
       <Portal>
         <Modal
-          style={{ alignItems: "center", justifyContent: "space-around" }}
           visible={open}
           contentContainerStyle={containerStyle}
           onDismiss={() => setOpen(false)}
         >
+          <Text style={styles.modalTitle}>
+            Transaction #{deal.id} Lifecycle Management
+          </Text>
+          <Text style={styles.modalSubtitle}>
+            Current Stage: {activeLabel}
+          </Text>
+
+          <LifecycleStepper status={deal.status} stageNumber={deal.stage_number} />
+
+          {nextStage && (
+            <PaperButton
+              style={styles.actionBtn}
+              mode="contained"
+              loading={transactionUpdating}
+              buttonColor="#1B4332"
+              onPress={() => handleTransition(nextStage)}
+            >
+              Advance Stage: {nextActionLabel}
+            </PaperButton>
+          )}
+
+          {(deal.status === "pending" || deal.status === "waiting_for_farmer") && (
+            <PaperButton
+              style={[styles.actionBtn, { marginTop: 8 }]}
+              mode="outlined"
+              textColor="#BC4749"
+              onPress={() => handleTransition("rejected")}
+            >
+              Reject Offer
+            </PaperButton>
+          )}
+
           <PaperButton
-            style={{ margin: 16 }}
-            mode="contained"
-            onPress={handlePayment}
+            style={{ marginTop: 12 }}
+            mode="text"
+            onPress={() => setOpen(false)}
           >
-            Make Payment
-          </PaperButton>
-          <PaperButton
-            style={{ margin: 16 }}
-            mode="contained"
-            onPress={() =>
-              handleMarkAsDone(
-                farmer,
-                dealer,
-                price,
-                crop_register,
-                subsequentState,
-                created_at,
-                id
-              )
-            }
-          >
-            Mark Payment as done
+            Close
           </PaperButton>
         </Modal>
       </Portal>
-      <Card key={deal.id} style={{ ...styles.cards, paddingHorizontal: 0 }}>
+
+      <Card key={deal.id} style={{ ...globalStyles.card, paddingHorizontal: 0 }}>
         <Card.Content
           style={{
-            marginBottom: 8,
+            marginBottom: 12,
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            marginLeft: -16,
           }}
         >
-          <Card.Content style={{ flexDirection: "row" }}>
-            <Image source={images["profile"]} style={styles.pfp} />
-            <Text variant="titleMedium">{deal.dealer.username}</Text>
-          </Card.Content>
-          <Text variant="titleSmall">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: "#D8F3DC",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Image source={images["profile"]} style={{ width: 24, height: 24 }} />
+            </View>
+            <View>
+              <Text style={{ fontWeight: "bold" }}>{deal.dealer.username}</Text>
+              <Text style={{ color: "#666", fontSize: 11 }}>
+                Farmer: {deal.farmer.username}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: "#666", fontSize: 13 }}>
             {deal.crop_register.farmer_city} Mandi
           </Text>
         </Card.Content>
+
+        {/* 6-Stage Transaction Lifecycle Visual Stepper */}
+        <Card.Content>
+          <LifecycleStepper status={deal.status} stageNumber={deal.stage_number} />
+        </Card.Content>
+
+        <Divider style={{ marginBottom: 12 }} />
+
         <Card.Content
-          style={{ flexDirection: "row", justifyContent: "space-evenly" }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+          }}
         >
-          <Card.Content style={{ marginTop: 4 }}>
-            <Text variant="titleSmall">
-              {deal.crop_register.quantity} {deal.crop_register.name}
+          <View>
+            <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 4 }}>
+              {deal.crop_register.quantity} kg {deal.crop_register.name}
             </Text>
-            <Text variant="bodyMedium">Offer : {deal.price} per kg</Text>
-            <Text></Text>
-          </Card.Content>
-          <Card.Content>
+            <Text style={{ color: "#1B4332" }}>Offer: ₹{deal.price} / kg</Text>
             <Text
-              variant="titleMedium"
-              style={{ color: "#128100", marginBottom: 8 }}
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: "#1B4332",
+                marginTop: 8,
+              }}
             >
-              You get : Rs {deal.price * deal.crop_register.quantity}
+              Total: ₹{deal.price * deal.crop_register.quantity}
             </Text>
+          </View>
+          <View style={{ alignItems: "flex-end", gap: 6 }}>
             <Chip
-              style={{ backgroundColor: statusColor }}
+              style={{ backgroundColor: activeColor }}
+              textStyle={{ color: "white", fontWeight: "bold" }}
               onPress={() => setOpen(true)}
             >
-              {statusDisplay}
+              {activeLabel}
             </Chip>
-          </Card.Content>
+            {nextStage && (
+              <PaperButton
+                mode="contained-tonal"
+                compact
+                buttonColor="#D8F3DC"
+                textColor="#1B4332"
+                onPress={() => setOpen(true)}
+              >
+                Next Step
+              </PaperButton>
+            )}
+          </View>
         </Card.Content>
       </Card>
     </>
@@ -238,19 +242,26 @@ const TransactionCard = ({ deal, statusColor, statusDisplay }) => {
 };
 
 export default TransactionCard;
+
 const styles = StyleSheet.create({
-  fab: {
-    position: "absolute",
-    top: 780,
-    left: 316,
-  },
-  cards: {
-    backgroundColor: "#C5F5C2",
-    width: "100%",
-    marginBottom: 16,
-  },
   pfp: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1B4332",
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 8,
+  },
+  actionBtn: {
+    marginTop: 12,
+    borderRadius: 8,
   },
 });

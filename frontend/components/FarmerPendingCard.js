@@ -8,81 +8,46 @@ export default function FarmerPendingCard({ deal, handlePending }) {
     return (
         <Card
             key={id}
-            style={{ backgroundColor: "#C5F5C2", width: "80%", marginBottom: 16 }}
+            style={globalStyles.card}
         >
-            <Card.Content
-                style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-                <View
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "flex-start",
-                        gap: 8,
-                    }}
-                >
-                    <Image
-                        source={images["photo"]}
-                        style={{
-                            width: 30,
-                            height: 30,
-                        }}
-                    />
-                    <Text>{dealer.username}</Text>
+            <Card.Content style={{ flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFE8D6', alignItems: 'center', justifyContent: 'center' }}>
+                        <Image source={images["photo"]} style={{ width: 24, height: 24 }} />
+                    </View>
+                    <Text style={{ fontWeight: 'bold' }}>{dealer.username}</Text>
                 </View>
-                <Text variant="bodyMedium">{crop_register.farmer_city}</Text>
+                <Text style={{ color: '#666', fontSize: 13 }}>{crop_register.farmer_city} Mandi</Text>
             </Card.Content>
-            <Card.Content
-                style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    paddingHorizontal: 0,
-                }}
-            >
-                <Card.Content style={{ paddingLeft: 10, gap: 10 }}>
-                    <Text variant="bodyMedium">{crop_register.quantity} : {crop_register.name}</Text>
-                </Card.Content>
-                <Text variant="bodyMedium" style={{ color: "#128100" }}>
-                    You get : {price * crop_register.quantity}
+
+            <Divider style={{ marginBottom: 12 }} />
+
+            <Card.Content style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
+                    {crop_register.quantity} kg {crop_register.name}
+                </Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: "#1B4332", marginTop: 4 }}>
+                    You get : ₹{price * crop_register.quantity}
                 </Text>
             </Card.Content>
-            <View
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-around",
-                }}
-            >
+
+            <Card.Actions style={{ justifyContent: 'space-between', paddingHorizontal: 0 }}>
                 <Button
-                    style={{
-                        backgroundColor: "rgba(214, 61, 57, 1)",
-                        height: 40,
-                        width: 80,
-                        marginHorizontal: 30,
-                        marginVertical: 10,
-                        borderRadius: 10,
-                        color: "white",
-                    }}
+                    mode="outlined"
+                    textColor="#BC4749"
+                    style={{ flex: 1, marginRight: 8, borderColor: '#BC4749' }}
                     onPress={() => 
-                        //tragic code
                         handlePending(id, dealer, farmer, crop_register, price, "rejected", created_at)
                     }
                 >Reject</Button>
 
                 <Button
-                    style={{
-                        backgroundColor: "rgba(127, 220, 103, 1)",
-                        height: 40,
-                        width: 80,
-                        marginHorizontal: 30,
-                        marginVertical: 10,
-                        borderRadius: 10,
-                        color: "white",
-                    }}
+                    mode="contained"
+                    style={{ flex: 2, backgroundColor: "#1B4332" }}
                     onPress={() => handlePending(id, dealer, farmer, crop_register, price, "deal_done", created_at)
                 }
-                >Accept</Button>
-            </View>
+                >Accept Offer</Button>
+            </Card.Actions>
         </Card>
     )
 }

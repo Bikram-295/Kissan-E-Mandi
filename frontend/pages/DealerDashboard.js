@@ -3,61 +3,34 @@ import images from "../images";
 import globalStyles from "../globals";
 import { useCrops } from "../hooks/crops";
 import imageStyles from "../imagestyles";
-import { Button } from "@rneui/themed";
 import { View, ScrollView, StyleSheet, Image } from "react-native";
-import { FAB, Modal, Portal, Text, List, TextInput } from "react-native-paper";
+import { Text, Chip, Card, Button } from "react-native-paper";
+import { useDispatch, useSelector } from "react-redux";
 import { checkLoggedIn } from "../utils";
-import { Storage, Navbar, Carda, TransactionCard } from "./../components";
+import { Storage, Navbar, Carda, TransactionCard, MSPValuationModal } from "./../components";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  useCreateListing,
-  useListingsFarmer,
-  useListingsAll,
-} from "../hooks/listing";
-import {
-  useCreateTransaction,
-  useUpdateTransaction,
-  useTransactions,
-} from "../hooks/transaction";
+import { useListingsAll } from "../hooks/listing";
+import { useTransactions } from "../hooks/transaction";
+import { useTransactionSocket } from "../hooks/useTransactionSocket";
+import { setTransactions, selectAllTransactions } from "../store/slices/transactionSlice";
 
 const DealerDashboard = ({ navigation }) => {
-  const containerStyle = { backgroundColor: "white", padding: 20 };
+  const dispatch = useDispatch();
   const [currName, setCurrName] = useState("");
   const [currID, setCurrID] = useState("");
   const [currCity, setCurrCity] = useState("");
+  const [mspModalVisible, setMspModalVisible] = useState(false);
+
   const { crops, error, isLoading } = useCrops();
-  const [openEditPrice, setOpenEditPrice] = useState(false);
   const {
-    transactions,
+    transactions: rawTransactions,
     error: transError,
     isLoading: transLoading,
   } = useTransactions();
-
-  //   const currCity = await AsyncStorage.getItem("city");
-
-  //   const { listingCreator, listingCreating } = useCreateListing();
   const { listings } = useListingsAll();
 
-  const farmerDoneDeals =
-    currID != "" &&
-    transactions &&
-    transactions.filter((trans) => {
-      //exploits the fact that status has only 6 possible states
-      console.log(`id is : ${currID}`);
-      console.log(trans.dealer.id);
-      console.log(trans.status);
-      return (
-        trans.dealer.id === currID &&
-        (trans.status === "deal_done" ||
-          trans.status === "delivered" ||
-          trans.status === "payment_done")
-      );
-    });
-    console.log(farmerDoneDeals);
-
-  const dealerListings =
-    listings && listings.filter((listing) => listing.farmer_city === currCity);
-  console.log("sfdgrfhtgj", dealerListings);
+  // Connect WebSocket for real-time lifecycle sync
+  const { isConnected: wsConnected } = useTransactionSocket(currID);
 
   useEffect(() => {
     (async () => {
@@ -65,80 +38,171 @@ const DealerDashboard = ({ navigation }) => {
       setCurrName(username);
       setCurrID(id);
       const city = await AsyncStorage.getItem("city");
-      console.log(city);
-      setCurrCity(city);
+      setCurrCity(city || "");
     })();
   }, []);
-  //  const [open, setOpen] = useState(false);
-  //  const [crop, setCrop] = useState("");
-  //  const [quantity, setQuantity] = useState("");
-  //  const [recipient, setRecipient] = useState("");
+
+  // Synchronize transactions with Redux store
+  useEffect(() => {
+    if (rawTransactions && rawTransactions.length > 0) {
+      dispatch(setTransactions(rawTransactions));
+    }
+  }, [rawTransactions, dispatch]);
+
+  const reduxTransactions = useSelector(selectAllTransactions);
+  const activeTransactions = reduxTransactions.length > 0 ? reduxTransactions : rawTransactions;
+
+  // 6-stage active deals for the current dealer
+  const dealerDeals =
+    currID != "" &&
+    activeTransactions &&
+    activeTransactions.filter((trans) => {
+      return (
+        trans.dealer.id === currID &&
+        (trans.status === "deal_done" ||
+          trans.status === "dispatched" ||
+          trans.status === "delivered" ||
+          trans.status === "inspected" ||
+          trans.status === "payment_done")
+      );
+    });
+
+  const dealerListings =
+    listings &&
+    (currCity
+      ? listings.filter((listing) => listing.farmer_city?.toLowerCase() === currCity.toLowerCase())
+      : listings);
+
   return (
-    <ScrollView style={{ display: "flex" }}>
+    <View style={{ flex: 1, backgroundColor: "#F8F9F8" }}>
       <Navbar navigator={navigation} />
-      <View style={styles.dealer}>
-        <Text variant="headlineMedium">Welcome, {currName}</Text>
-        <Storage />
-        <View style={{ padding: 16 }}>
-          <Text variant="headlineMedium">Farmer's available</Text>
-          <View style={{ alignItems: "center", width: "100%", marginTop: 16 }}>
-            {dealerListings &&
-              dealerListings.map((listing) => {
-                let msp = 0;
-                // Find the crop from the crops list that matches the current listing's name
-                const matchedCrop =
-                  crops && crops.find((crop) => crop.name === listing.name);
-                // If a matching crop is found, assign its MSP to cropMSP
-                if (matchedCrop) {
-                  msp = matchedCrop.msp;
-                  return <Carda listing={listing} msp={msp} />;
-                }
-              })}
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* Hero Section */}
+        <View style={globalStyles.heroSection}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View>
+              <Text style={globalStyles.heroTitle}>Hello, {currName.split(" ")[0]}</Text>
+              <Text style={globalStyles.heroSubtitle}>Explore the latest listings from local farmers.</Text>
+            </View>
+            <Chip
+              style={{ backgroundColor: wsConnected ? "#D8F3DC" : "#FFE8D6" }}
+              textStyle={{ color: wsConnected ? "#1B4332" : "#D4A373", fontSize: 11, fontWeight: "bold" }}
+            >
+              {wsConnected ? "● Live Sync" : "○ Connecting"}
+            </Chip>
+          </View>
+
+          {/* Quick Stats Overview */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 24, marginHorizontal: -24, paddingHorizontal: 24 }}
+          >
+            <View style={{ ...globalStyles.statCard, ...globalStyles.statCardTeal }}>
+              <Text style={globalStyles.statLabel}>Available Crops</Text>
+              <Text style={globalStyles.statValue}>{dealerListings ? dealerListings.length : 0}</Text>
+            </View>
+            <View style={{ ...globalStyles.statCard, ...globalStyles.statCardBlue }}>
+              <Text style={globalStyles.statLabel}>Active 6-Stage Deals</Text>
+              <Text style={globalStyles.statValue}>{dealerDeals ? dealerDeals.length : 0}</Text>
+            </View>
+            <View style={{ ...globalStyles.statCard, ...globalStyles.statCardAmber }}>
+              <Text style={globalStyles.statLabel}>My Mandi City</Text>
+              <Text style={globalStyles.statValue}>{currCity || "All"}</Text>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Automated MSP Valuation Engine Banner for Dealers */}
+        <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <Card style={{ backgroundColor: "#E8F5E9", borderColor: "#A3D9A5", borderWidth: 1 }}>
+            <Card.Content style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ fontWeight: "bold", color: "#1B4332", fontSize: 15 }}>
+                  🌾 MSP Fair Valuation Engine
+                </Text>
+                <Text style={{ color: "#40916C", fontSize: 12, marginTop: 2 }}>
+                  Check government benchmark MSP floor and quality grade adjustments.
+                </Text>
+              </View>
+              <Button
+                mode="contained"
+                compact
+                buttonColor="#1B4332"
+                onPress={() => setMspModalVisible(true)}
+              >
+                Evaluate Offer
+              </Button>
+            </Card.Content>
+          </Card>
+        </View>
+
+        <View style={styles.content}>
+          {/* Active Deals Section */}
+          {dealerDeals && dealerDeals.length > 0 && (
+            <View style={{ marginTop: 16 }}>
+              <Text variant="headlineSmall" style={styles.sectionTitle}>
+                Active 6-Stage Transactions
+              </Text>
+              <View style={{ width: "100%", marginTop: 8 }}>
+                {dealerDeals.map((deal) => (
+                  <TransactionCard key={deal.id} deal={deal} />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Farmer Listings Section */}
+          <View style={{ marginTop: 16 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <Text variant="headlineSmall" style={styles.sectionTitle}>
+                Farmer Harvest Listings
+              </Text>
+              <Text style={{ color: "#1B4332", fontWeight: "bold" }}>
+                In {currCity || "All Mandis"}
+              </Text>
+            </View>
+            <View style={{ width: "100%" }}>
+              {dealerListings &&
+                dealerListings.map((listing) => {
+                  let msp = 0;
+                  const matchedCrop =
+                    crops && crops.find((crop) => crop.name.toLowerCase() === listing.name.toLowerCase());
+                  if (matchedCrop) {
+                    msp = matchedCrop.msp;
+                  }
+                  return <Carda key={listing.id} listing={listing} msp={msp} />;
+                })}
+            </View>
           </View>
         </View>
-        <View style={{ padding: 16 }}>
-          <Text variant="headlineMedium">Ongoing deals</Text>
-          <View style={{ alignItems: "center", width: "100%", marginTop: 16 }}>
-            {farmerDoneDeals &&
-              farmerDoneDeals.map((deal, index) => {
-                let statusDisplay = "";
-                let statusColor = "";
-                if (deal.status === "deal_done") {
-                  statusDisplay = "To be delivered";
-                  statusColor = "#128100";
-                } else if (deal.status === "delivered") {
-                  statusDisplay = "Delivered";
-                  statusColor = "#128100";
-                } else if (deal.status === "payment_done") {
-                  statusDisplay = "Payment Done";
-                  statusColor = "#128100";
-                }
-                return (
-                  <TransactionCard
-                    deal={deal}
-                    statusDisplay={statusDisplay}
-                    statusColor={statusColor}
-                  />
-                );
-              })}
-          </View>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* MSP Valuation Modal */}
+      <MSPValuationModal
+        visible={mspModalVisible}
+        onDismiss={() => setMspModalVisible(false)}
+      />
+    </View>
   );
 };
 
 export default DealerDashboard;
 
 const styles = StyleSheet.create({
-  dealer: {
-    position: "absolute",
-    width: 430,
-    height: 937,
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 15,
-    top: 65,
+  content: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontWeight: "bold",
+    color: "#1B4332",
+    fontSize: 20,
   },
 });

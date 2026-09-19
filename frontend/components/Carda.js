@@ -114,84 +114,47 @@ const Carda = ({ listing, msp }) => {
   return (
     <Card
       key={listing.id} 
-      style={{ backgroundColor: "#C5F5C2", width: 360, marginBottom: 16, display : display ? "block" : "none"}}
+      style={{ ...globalStyles.card, display : display ? "flex" : "none"}}
     >
-      <Card.Content
-        style={{ flexDirection: "row", justifyContent: "space-between" }}
-      >
-        <View
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "flex-start",
-            gap: 8,
-          }}
-        >
-          <Image
-            source={images["photo"]}
-            style={{
-              width: 30,
-              height: 30,
-            }}
-          />
-          <Text>{listing.farmer_name}</Text>
+      <Card.Content style={{ flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#D8F3DC', alignItems: 'center', justifyContent: 'center' }}>
+            <Image source={images["photo"]} style={{ width: 24, height: 24 }} />
+          </View>
+          <Text style={{ fontWeight: 'bold', color: '#1B4332' }}>{listing.farmer_name}</Text>
         </View>
-        <Text variant="bodyMedium">{listing.farmer_city}</Text>
+        <Text style={{ color: '#666', fontSize: 13 }}>{listing.farmer_city}</Text>
       </Card.Content>
-      <Card.Content
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          paddingHorizontal: 0,
-        }}
-      >
-        <Card.Content style={{ paddingLeft: 10, gap: 10 }}>
-          <Text variant="bodyMedium">
-            Quantity : {listing.quantity} {listing.name}
-          </Text>
-          <Text variant="bodySmall">MSP : {msp} rupees per kg</Text>
-        </Card.Content>
-        <Text variant="bodyMedium" style={{ color: "#128100" }}>
-          By MSP : Rs {msp * listing.quantity}
+      
+      <Divider style={{ marginBottom: 12 }} />
+
+      <Card.Content style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
+          {listing.quantity} kg {listing.name}
+        </Text>
+        <Text style={{ color: '#666', fontSize: 13 }}>MSP: ₹{msp} / kg</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: "#1B4332", marginTop: 8 }}>
+          By MSP: ₹{msp * listing.quantity}
         </Text>
       </Card.Content>
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-        }}
-      >
+
+      <Card.Actions style={{ justifyContent: 'space-between', paddingHorizontal: 0 }}>
         <Button
           title="Reject"
-          buttonStyle={{ backgroundColor: "rgba(214, 61, 57, 1)" }}
-          containerStyle={{
-            height: 40,
-            width: 80,
-            marginHorizontal: 30,
-            marginVertical: 10,
-            borderRadius: 10,
-          }}
-          titleStyle={{ color: "white" }}
+          type="outline"
+          buttonStyle={{ borderColor: '#BC4749', borderWidth: 1 }}
+          titleStyle={{ color: '#BC4749' }}
+          containerStyle={{ flex: 1, marginRight: 8 }}
           onPress={() => setDisplay(false)}
         />
 
         <Button
           title="Accept"
-          buttonStyle={{ backgroundColor: "rgba(127, 220, 103, 1)" }}
-          containerStyle={{
-            height: 40,
-            width: 80,
-            marginHorizontal: 30,
-            marginVertical: 10,
-            borderRadius: 10,
-          }}
-          titleStyle={{
-            color: "white",
-          }}
+          buttonStyle={{ backgroundColor: "#1B4332" }}
+          containerStyle={{ flex: 2 }}
           onPress={() => handleAccept(farmer, id, msp )}
         />
-      </View>
+      </Card.Actions>
       <OfferPrice transaction={transaction} openEditPrice={openEditPrice} setOpenEditPrice={setOpenEditPrice} />
     </Card>
   );
